@@ -31,7 +31,7 @@ class Tool(ABC):
         """
 
     @abstractmethod
-    def execute(self, **kwargs: Any) -> Any:
+    async def execute(self, **kwargs: Any) -> Any:
         """Run the tool with the provided arguments and return its result."""
 
     # ---------------------------------------------------------------------- #
