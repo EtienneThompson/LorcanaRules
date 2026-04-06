@@ -42,6 +42,7 @@ class ReprintReference(BaseModel):
 class CardResult(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
+    score: float = Field(alias="@search.score", default=0.0)
     id: int
     name: str
     version: str | None = None
