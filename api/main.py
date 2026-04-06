@@ -9,7 +9,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from llm import AzureOpenAIClient
-from tools import SearchCardsTool, SearchRulesTool
+from planner import Planner
+from tools import SearchCardsTool, SearchRulesTool, registry
 
 logging.basicConfig(level=logging.INFO)
 
@@ -29,6 +30,10 @@ class ChatRequest(BaseModel):
     messages: list[dict[str, str]]
 
 
+class PlanRequest(BaseModel):
+    query: str
+
+
 # --------------------------------------------------------------------------- #
 # Search endpoints                                                              #
 # --------------------------------------------------------------------------- #
@@ -45,6 +50,30 @@ def search_cards(req: SearchRequest):
     logging.info("search_cards called")
     results = SearchCardsTool().execute(query=req.query, top=req.top)
     return {"query": req.query, "count": len(results), "results": [r.model_dump(mode="json") for r in results]}
+
+
+# --------------------------------------------------------------------------- #
+# Planner endpoints                                                             #
+# --------------------------------------------------------------------------- #
+
+@app.post("/plan")
+def plan(req: PlanRequest):
+    """
+    Run the planner against the user's query and return the tool calls it chose.
+
+    Useful for testing the planner in isolation before wiring in tool execution
+    and the responder.  The response lists each tool call in order, with its
+    name and parsed arguments.
+    """
+    logging.info("plan called with query: %r", req.query)
+    tool_calls = list(Planner(tools=registry.TOOLS).plan(req.query))
+    return {
+        "query": req.query,
+        "tool_calls": [
+            {"name": tc.name, "arguments": tc.arguments}
+            for tc in tool_calls
+        ],
+    }
 
 
 # --------------------------------------------------------------------------- #
