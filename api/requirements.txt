@@ -1,6 +1,7 @@
 azure-identity
 azure-search-documents
 fastapi
+jinja2
 openai
 pydantic
 python-dotenv
