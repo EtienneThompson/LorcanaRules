@@ -40,15 +40,15 @@ class AzureOpenAIClient:
         self,
         messages: list[dict[str, str]],
         temperature: float = 0.3,
-        max_tokens: int = 1024,
+        max_completion_tokens: int = 1024,
     ) -> str:
         """
         Send a chat completion request and return the full response text.
 
         Args:
-            messages:    List of {"role": ..., "content": ...} dicts.
-            temperature: Sampling temperature.
-            max_tokens:  Maximum tokens in the response.
+            messages:               List of {"role": ..., "content": ...} dicts.
+            temperature:            Sampling temperature.
+            max_completion_tokens:  Maximum tokens in the response.
 
         Returns:
             The assistant's reply as a string.
@@ -57,7 +57,7 @@ class AzureOpenAIClient:
             model=self._deployment,
             messages=messages,
             temperature=temperature,
-            max_tokens=max_tokens,
+            max_completion_tokens=max_completion_tokens,
             stream=False,
         )
         return response.choices[0].message.content
@@ -66,15 +66,15 @@ class AzureOpenAIClient:
         self,
         messages: list[dict[str, str]],
         temperature: float = 0.3,
-        max_tokens: int = 1024,
+        max_completion_tokens: int = 1024,
     ) -> Generator[str, None, None]:
         """
         Send a chat completion request and yield response text chunks as they arrive.
 
         Args:
-            messages:    List of {"role": ..., "content": ...} dicts.
-            temperature: Sampling temperature.
-            max_tokens:  Maximum tokens in the response.
+            messages:               List of {"role": ..., "content": ...} dicts.
+            temperature:            Sampling temperature.
+            max_completion_tokens:  Maximum tokens in the response.
 
         Yields:
             Text delta strings from the model.
@@ -83,7 +83,7 @@ class AzureOpenAIClient:
             model=self._deployment,
             messages=messages,
             temperature=temperature,
-            max_tokens=max_tokens,
+            max_completion_tokens=max_completion_tokens,
             stream=True,
         )
         for chunk in response:

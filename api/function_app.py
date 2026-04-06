@@ -168,13 +168,13 @@ def chat_stream(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     try:
-        def generate():
-            for chunk in AzureOpenAIClient().stream(messages=messages):
-                yield _sse_event(json.dumps({"chunk": chunk}))
-            yield _sse_event("[DONE]")
+        events = "".join(
+            _sse_event(json.dumps({"chunk": chunk}))
+            for chunk in AzureOpenAIClient().stream(messages=messages)
+        ) + _sse_event("[DONE]")
 
         return func.HttpResponse(
-            body=generate(),
+            body=events,
             status_code=200,
             mimetype="text/event-stream",
             headers={
