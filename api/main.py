@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from llm import AzureOpenAIClient
-from search import CardsSearch, RulesSearch
+from tools import SearchCardsTool, SearchRulesTool
 
 logging.basicConfig(level=logging.INFO)
 
@@ -36,14 +36,14 @@ class ChatRequest(BaseModel):
 @app.post("/search_rules")
 def search_rules(req: SearchRequest):
     logging.info("search_rules called")
-    results = RulesSearch().search(query=req.query, top=req.top)
+    results = SearchRulesTool().execute(query=req.query, top=req.top)
     return {"query": req.query, "count": len(results), "results": [r.model_dump(mode="json") for r in results]}
 
 
 @app.post("/search_cards")
 def search_cards(req: SearchRequest):
     logging.info("search_cards called")
-    results = CardsSearch().search(query=req.query, top=req.top)
+    results = SearchCardsTool().execute(query=req.query, top=req.top)
     return {"query": req.query, "count": len(results), "results": [r.model_dump(mode="json") for r in results]}
 
 
