@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 
@@ -10,11 +11,13 @@ from pydantic import BaseModel
 
 from llm import AzureOpenAIClient
 from planner import Planner
-from tools import SearchCardsTool, SearchRulesTool, registry
+from tools import SearchCardsTool, SearchRulesTool, ToolExecutor, registry
 
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="Lorcana Rules API")
+
+_executor = ToolExecutor(registry)
 
 
 # --------------------------------------------------------------------------- #
@@ -39,16 +42,16 @@ class PlanRequest(BaseModel):
 # --------------------------------------------------------------------------- #
 
 @app.post("/search_rules")
-def search_rules(req: SearchRequest):
+async def search_rules(req: SearchRequest):
     logging.info("search_rules called")
-    results = SearchRulesTool().execute(query=req.query, top=req.top)
+    results = await SearchRulesTool().execute(query=req.query, top=req.top)
     return {"query": req.query, "count": len(results), "results": [r.model_dump(mode="json") for r in results]}
 
 
 @app.post("/search_cards")
-def search_cards(req: SearchRequest):
+async def search_cards(req: SearchRequest):
     logging.info("search_cards called")
-    results = SearchCardsTool().execute(query=req.query, top=req.top)
+    results = await SearchCardsTool().execute(query=req.query, top=req.top)
     return {"query": req.query, "count": len(results), "results": [r.model_dump(mode="json") for r in results]}
 
 
@@ -57,21 +60,33 @@ def search_cards(req: SearchRequest):
 # --------------------------------------------------------------------------- #
 
 @app.post("/plan")
-def plan(req: PlanRequest):
+async def plan(req: PlanRequest):
     """
-    Run the planner against the user's query and return the tool calls it chose.
+    Run the planner against the user's query, execute all chosen tool calls in
+    parallel, and return the aggregated results.
 
-    Useful for testing the planner in isolation before wiring in tool execution
-    and the responder.  The response lists each tool call in order, with its
-    name and parsed arguments.
+    Tool calls are dispatched as soon as the planner streams each one, so
+    execution of earlier tool calls overlaps with the planner still generating
+    later ones.
     """
     logging.info("plan called with query: %r", req.query)
-    tool_calls = list(Planner(tools=registry.TOOLS).plan(req.query))
+    planner = Planner(tools=registry.all())
+
+    tasks = []
+    async for tool_call in planner.plan(req.query):
+        tasks.append(asyncio.create_task(_executor.execute(tool_call)))
+
+    tool_results = await asyncio.gather(*tasks)
+
     return {
         "query": req.query,
-        "tool_calls": [
-            {"name": tc.name, "arguments": tc.arguments}
-            for tc in tool_calls
+        "results": [
+            {
+                "tool": tr.tool_call.name,
+                "arguments": tr.tool_call.arguments,
+                "result": [r.model_dump(mode="json") for r in tr.result],
+            }
+            for tr in tool_results
         ],
     }
 
@@ -81,22 +96,22 @@ def plan(req: PlanRequest):
 # --------------------------------------------------------------------------- #
 
 @app.post("/chat")
-def chat(req: ChatRequest):
+async def chat(req: ChatRequest):
     logging.info("chat called")
     if not req.messages:
         raise HTTPException(status_code=400, detail="'messages' must be a non-empty list")
-    reply = AzureOpenAIClient().complete(messages=req.messages)
+    reply = await AzureOpenAIClient().complete(messages=req.messages)
     return {"reply": reply}
 
 
 @app.post("/chat_stream")
-def chat_stream(req: ChatRequest):
+async def chat_stream(req: ChatRequest):
     logging.info("chat_stream called")
     if not req.messages:
         raise HTTPException(status_code=400, detail="'messages' must be a non-empty list")
 
-    def generate():
-        for chunk in AzureOpenAIClient().stream(messages=req.messages):
+    async def generate():
+        async for chunk in AzureOpenAIClient().stream(messages=req.messages):
             yield f"data: {json.dumps({'chunk': chunk})}\n\n"
         yield "data: [DONE]\n\n"
 

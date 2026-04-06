@@ -1,13 +1,13 @@
 import os
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-from openai import AzureOpenAI
+from openai import AsyncAzureOpenAI
 
 
-def _create_client() -> tuple[AzureOpenAI, str]:
+def _create_client() -> tuple[AsyncAzureOpenAI, str]:
     """
-    Create an AzureOpenAI client and return it alongside the deployment name.
+    Create an AsyncAzureOpenAI client and return it alongside the deployment name.
 
     Authenticates using DefaultAzureCredential (Azure CLI locally,
     managed identity when deployed).
@@ -22,7 +22,7 @@ def _create_client() -> tuple[AzureOpenAI, str]:
         DefaultAzureCredential(),
         "https://cognitiveservices.azure.com/.default",
     )
-    client = AzureOpenAI(
+    client = AsyncAzureOpenAI(
         azure_endpoint=endpoint,
         azure_ad_token_provider=token_provider,
         api_version="2024-12-01-preview",
@@ -31,12 +31,12 @@ def _create_client() -> tuple[AzureOpenAI, str]:
 
 
 class AzureOpenAIClient:
-    """Wrapper around Azure OpenAI supporting full and streaming responses."""
+    """Wrapper around Azure OpenAI supporting full and streaming async responses."""
 
     def __init__(self) -> None:
         self._client, self._deployment = _create_client()
 
-    def complete(
+    async def complete(
         self,
         messages: list[dict[str, str]],
         temperature: float = 0.3,
@@ -53,7 +53,7 @@ class AzureOpenAIClient:
         Returns:
             The assistant's reply as a string.
         """
-        response = self._client.chat.completions.create(
+        response = await self._client.chat.completions.create(
             model=self._deployment,
             messages=messages,
             temperature=temperature,
@@ -62,12 +62,12 @@ class AzureOpenAIClient:
         )
         return response.choices[0].message.content
 
-    def stream(
+    async def stream(
         self,
         messages: list[dict[str, str]],
         temperature: float = 0.3,
         max_completion_tokens: int = 1024,
-    ) -> Generator[str, None, None]:
+    ) -> AsyncGenerator[str, None]:
         """
         Send a chat completion request and yield response text chunks as they arrive.
 
@@ -79,14 +79,14 @@ class AzureOpenAIClient:
         Yields:
             Text delta strings from the model.
         """
-        response = self._client.chat.completions.create(
+        response = await self._client.chat.completions.create(
             model=self._deployment,
             messages=messages,
             temperature=temperature,
             max_completion_tokens=max_completion_tokens,
             stream=True,
         )
-        for chunk in response:
+        async for chunk in response:
             delta = chunk.choices[0].delta.content if chunk.choices else None
             if delta:
                 yield delta

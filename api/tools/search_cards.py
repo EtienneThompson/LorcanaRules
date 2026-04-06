@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 
 from models import CardResult
@@ -44,7 +45,7 @@ class SearchCardsTool(Tool):
             "required": ["query"],
         }
 
-    def execute(self, query: str, top: int = 5, **kwargs: Any) -> list[CardResult]:
+    async def execute(self, query: str, top: int = 5, **kwargs: Any) -> list[CardResult]:
         """
         Search the cards index and return matching CardResult objects.
 
@@ -55,4 +56,4 @@ class SearchCardsTool(Tool):
         Returns:
             A list of matching CardResult objects.
         """
-        return CardsSearch().search(query=query, top=top)
+        return await asyncio.to_thread(CardsSearch().search, query=query, top=top)

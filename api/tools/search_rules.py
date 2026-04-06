@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 
 from models import RuleResult
@@ -44,7 +45,7 @@ class SearchRulesTool(Tool):
             "required": ["query"],
         }
 
-    def execute(self, query: str, top: int = 5, **kwargs: Any) -> list[RuleResult]:
+    async def execute(self, query: str, top: int = 5, **kwargs: Any) -> list[RuleResult]:
         """
         Search the rules index and return matching RuleResult objects.
 
@@ -55,4 +56,4 @@ class SearchRulesTool(Tool):
         Returns:
             A list of matching RuleResult objects.
         """
-        return RulesSearch().search(query=query, top=top)
+        return await asyncio.to_thread(RulesSearch().search, query=query, top=top)

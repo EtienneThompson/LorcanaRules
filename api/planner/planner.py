@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 
 from llm import AzureOpenAIClient
 from prompts import PromptFormatter
@@ -62,8 +62,8 @@ class Planner:
         tools = [SearchCardsTool(), SearchRulesTool()]
         planner = Planner(tools=tools)
 
-        for tool_call in planner.plan("What does Elsa cost and can she quest?"):
-            results = dispatch(tool_call)
+        async for tool_call in planner.plan("What does Elsa cost and can she quest?"):
+            results = await dispatch(tool_call)
     """
 
     def __init__(
@@ -82,7 +82,7 @@ class Planner:
         self._formatter = PromptFormatter()
         self._llm = AzureOpenAIClient()
 
-    def plan(self, query: str) -> Generator[ToolCall, None, None]:
+    async def plan(self, query: str) -> AsyncGenerator[ToolCall, None]:
         """
         Stream tool calls for the given user query.
 
@@ -110,7 +110,7 @@ class Planner:
         logger.info("Planner streaming for query: %r", query)
 
         buffer = ""
-        for chunk in self._llm.stream(messages=messages, temperature=self._temperature):
+        async for chunk in self._llm.stream(messages=messages, temperature=self._temperature):
             buffer += chunk
 
             # Yield any complete lines immediately.
