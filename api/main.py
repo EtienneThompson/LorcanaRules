@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 
@@ -10,14 +9,14 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from llm import AzureOpenAIClient
-from planner import Planner
-from tools import SearchCardsTool, SearchRulesTool, ToolExecutor, registry
+from orchestrator import Orchestrator
+from tools import SearchCardsTool, SearchRulesTool, registry
 
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="Lorcana Rules API")
 
-_executor = ToolExecutor(registry)
+_orchestrator = Orchestrator(registry)
 
 
 # --------------------------------------------------------------------------- #
@@ -70,13 +69,7 @@ async def plan(req: PlanRequest):
     later ones.
     """
     logging.info("plan called with query: %r", req.query)
-    planner = Planner(tools=registry.all())
-
-    tasks = []
-    async for tool_call in planner.plan(req.query):
-        tasks.append(asyncio.create_task(_executor.execute(tool_call)))
-
-    tool_results = await asyncio.gather(*tasks)
+    tool_results = await _orchestrator.orchestrate(req.query)
 
     return {
         "query": req.query,
