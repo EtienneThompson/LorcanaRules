@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from llm import AzureOpenAIClient
 from orchestrator import Orchestrator
+from responder import TextOutput
 from tools import SearchCardsTool, SearchRulesTool, registry
 
 logging.basicConfig(level=logging.INFO)
@@ -61,27 +62,28 @@ async def search_cards(req: SearchRequest):
 @app.post("/plan")
 async def plan(req: PlanRequest):
     """
-    Run the planner against the user's query, execute all chosen tool calls in
-    parallel, and return the aggregated results.
+    Run the full RAG pipeline for the user's query and stream back the response.
 
-    Tool calls are dispatched as soon as the planner streams each one, so
-    execution of earlier tool calls overlaps with the planner still generating
-    later ones.
+    The planner, tool executor, and responder are coordinated by the orchestrator.
+    Each text chunk is streamed back as a server-sent event as soon as it arrives
+    from the responder.
     """
     logging.info("plan called with query: %r", req.query)
-    tool_results = await _orchestrator.orchestrate(req.query)
 
-    return {
-        "query": req.query,
-        "results": [
-            {
-                "tool": tr.tool_call.name,
-                "arguments": tr.tool_call.arguments,
-                "result": [r.model_dump(mode="json") for r in tr.result],
-            }
-            for tr in tool_results
-        ],
-    }
+    async def generate():
+        async for output in _orchestrator.orchestrate(req.query):
+            if isinstance(output, TextOutput):
+                yield f"data: {json.dumps({'text': output.text})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # --------------------------------------------------------------------------- #
