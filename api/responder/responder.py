@@ -8,7 +8,7 @@ from llm import AzureOpenAIClient
 from models import CardResult, RuleResult
 from prompts import PromptFormatter
 
-from .models import CitationOutput, TextOutput
+from .models import CardOutput, CitationOutput, TextOutput
 from .parser import ResponderOutput, ResponderParser
 
 if TYPE_CHECKING:
@@ -25,6 +25,28 @@ def _build_rules_map(tool_results: list[ToolResult]) -> dict[str, str]:
             if isinstance(item, RuleResult):
                 rules[item.rule_id] = item.rule_text
     return rules
+
+
+def _build_cards_map(
+    tool_results: list[ToolResult],
+) -> tuple[dict[int, tuple[str, str]], dict[str, tuple[int, str, str]]]:
+    """
+    Return two lookups built from card tool results:
+      - id_map:   card_id (int)  → (full_name, image_url)
+      - name_map: normalised name → (card_id, full_name, image_url)
+
+    The name map is used as a fallback when the model emits [[Card Name]]
+    instead of [[card_id]].
+    """
+    id_map: dict[int, tuple[str, str]] = {}
+    name_map: dict[str, tuple[int, str, str]] = {}
+    for tr in tool_results:
+        for item in tr.result:
+            if isinstance(item, CardResult):
+                entry = (item.fullName, item.images.full)
+                id_map[item.id] = entry
+                name_map[item.fullName.lower()] = (item.id, item.fullName, item.images.full)
+    return id_map, name_map
 
 
 def _build_context(tool_results: list[ToolResult]) -> str:
@@ -49,7 +71,7 @@ def _build_context(tool_results: list[ToolResult]) -> str:
     if cards:
         lines = ["### Cards"]
         for card in cards:
-            lines.append(f"**{card.fullName}** (score: {card.score:.4f})")
+            lines.append(f"**{card.fullName}** (card_id: {card.id}, score: {card.score:.4f})")
             lines.append(card.completeCardText)
         sections.append("\n".join(lines))
 
@@ -108,7 +130,8 @@ class Responder:
             order they are generated.
         """
         rules_map = _build_rules_map(tool_results)
-        parser = ResponderParser(rules=rules_map)
+        cards_id_map, cards_name_map = _build_cards_map(tool_results)
+        parser = ResponderParser(rules=rules_map, cards=cards_id_map, cards_by_name=cards_name_map)
 
         context = _build_context(tool_results)
         system_prompt = self._formatter.render("responder", "system.j2", context=context)

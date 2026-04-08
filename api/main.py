@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from orchestrator import Orchestrator
-from responder import CitationOutput, TextOutput
+from responder import CardOutput, CitationOutput, TextOutput
 from tools import registry
 
 logging.basicConfig(level=logging.INFO)
@@ -48,6 +48,8 @@ async def chat(req: ChatRequest):
                 yield f"data: {json.dumps({'type': 'text', 'text': output.text})}\n\n"
             elif isinstance(output, CitationOutput):
                 yield f"data: {json.dumps({'type': 'citation', 'number': output.number, 'rule_id': output.rule_id, 'rule_text': output.rule_text})}\n\n"
+            elif isinstance(output, CardOutput):
+                yield f"data: {json.dumps({'type': 'card', 'card_id': output.card_id, 'full_name': output.full_name, 'image_url': output.image_url})}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

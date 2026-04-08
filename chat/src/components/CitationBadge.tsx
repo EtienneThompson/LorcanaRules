@@ -9,7 +9,7 @@ export function CitationBadge({ citation }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
-    <span className="relative inline-block align-middle mx-0.5">
+    <span className="relative inline-block align-super mx-0.5">
       <button
         className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold leading-none cursor-pointer hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
         onMouseEnter={() => setOpen(true)}

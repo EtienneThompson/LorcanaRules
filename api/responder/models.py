@@ -25,9 +25,17 @@ class CitationOutput:
     number: int
 
 
-# Future output types — not yet implemented:
-#
-# @dataclass
-# class CardOutput:
-#     """A reference to a specific card. The orchestrator resolves this to card data."""
-#     card_id: int
+@dataclass
+class CardOutput:
+    """
+    A reference to a specific card emitted when the LLM generates [[card_id]].
+
+    Attributes:
+        card_id:   The numeric card ID as it appears in the cards index.
+        full_name: The card's full display name (e.g. "Elsa - Snow Queen").
+        image_url: URL of the card's full artwork image.
+    """
+
+    card_id: int
+    full_name: str
+    image_url: str

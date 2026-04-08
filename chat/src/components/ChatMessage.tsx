@@ -1,4 +1,5 @@
 import ReactMarkdown from 'react-markdown';
+import { CardReference } from './CardReference';
 import { CitationBadge } from './CitationBadge';
 import { useTypewriter } from '../hooks/useTypewriter';
 import type { Message } from '../types';
@@ -25,7 +26,6 @@ export function ChatMessage({ message }: Props) {
 
   const isWaiting = !isUser && message.streaming && message.text.length === 0;
 
-  // Build a number → Citation lookup for the custom code renderer.
   const citationMap = Object.fromEntries(
     message.citations.map(c => [c.number, c])
   );
@@ -47,19 +47,21 @@ export function ChatMessage({ message }: Props) {
           <div className="prose prose-sm dark:prose-invert max-w-none">
             <ReactMarkdown
               components={{
-                // Intercept inline code nodes — cite:N markers are embedded as
-                // inline code so ReactMarkdown preserves them as discrete nodes.
                 code({ children }) {
                   const content = String(children);
-                  const match = content.match(/^cite:(\d+)$/);
-                  if (match) {
-                    const n = parseInt(match[1], 10);
-                    const citation = citationMap[n];
-                    if (citation) {
-                      return <CitationBadge citation={citation} />;
-                    }
+
+                  const citeMatch = content.match(/^cite:(\d+)$/);
+                  if (citeMatch) {
+                    const citation = citationMap[parseInt(citeMatch[1], 10)];
+                    if (citation) return <CitationBadge citation={citation} />;
                   }
-                  // Ordinary inline code — render normally.
+
+                  const cardMatch = content.match(/^card:(\d+)$/);
+                  if (cardMatch) {
+                    const card = message.cards[parseInt(cardMatch[1], 10)];
+                    if (card) return <CardReference card={card} />;
+                  }
+
                   return <code>{children}</code>;
                 },
               }}
