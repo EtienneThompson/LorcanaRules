@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from orchestrator import Orchestrator
-from responder import TextOutput
+from responder import CitationOutput, TextOutput
 from tools import registry
 
 logging.basicConfig(level=logging.INFO)
@@ -45,7 +45,9 @@ async def chat(req: ChatRequest):
     async def generate():
         async for output in _orchestrator.orchestrate(req.query):
             if isinstance(output, TextOutput):
-                yield f"data: {json.dumps({'text': output.text})}\n\n"
+                yield f"data: {json.dumps({'type': 'text', 'text': output.text})}\n\n"
+            elif isinstance(output, CitationOutput):
+                yield f"data: {json.dumps({'type': 'citation', 'number': output.number, 'rule_id': output.rule_id, 'rule_text': output.rule_text})}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

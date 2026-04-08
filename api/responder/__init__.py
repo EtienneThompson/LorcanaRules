@@ -1,4 +1,4 @@
-from .models import TextOutput
+from .models import CitationOutput, TextOutput
 from .responder import Responder
 
-__all__ = ["Responder", "TextOutput"]
+__all__ = ["CitationOutput", "Responder", "TextOutput"]
