@@ -5,8 +5,8 @@ const CHARS_PER_TICK = 1;
 /** Milliseconds between ticks — 15ms gives ~67 chars/sec. */
 const TICK_MS = 15;
 
-/** Matches a citation marker embedded in the text, e.g. `cite:3` */
-const CITE_MARKER_RE = /^`cite:\d+`/;
+/** Matches an inline marker embedded in the text, e.g. `cite:3` or `card:42` */
+const MARKER_RE = /^`(?:cite|card):\d+`/;
 
 /**
  * Returns a progressively revealed substring of `fullText`, advancing
@@ -36,16 +36,22 @@ export function useTypewriter(fullText: string, streaming: boolean): string {
       if (posRef.current < target) {
         let next = Math.min(posRef.current + CHARS_PER_TICK, target);
 
-        // If the next reveal position lands inside a cite marker, jump past it.
-        const backtickIdx = full.indexOf('`cite:', posRef.current);
+        // If the next reveal position lands inside a marker, jump past it.
+        const backtickIdx = (() => {
+          const c = full.indexOf('`cite:', posRef.current);
+          const k = full.indexOf('`card:', posRef.current);
+          if (c === -1) return k;
+          if (k === -1) return c;
+          return Math.min(c, k);
+        })();
         if (backtickIdx !== -1 && backtickIdx < next) {
-          const markerMatch = full.slice(backtickIdx).match(CITE_MARKER_RE);
+          const markerMatch = full.slice(backtickIdx).match(MARKER_RE);
           if (markerMatch) {
             next = backtickIdx + markerMatch[0].length;
           }
         }
         // Also handle landing exactly at the start of a marker.
-        const atMarker = full.slice(next).match(/^`cite:\d+`/);
+        const atMarker = full.slice(next).match(MARKER_RE);
         if (atMarker) {
           next += atMarker[0].length;
         }

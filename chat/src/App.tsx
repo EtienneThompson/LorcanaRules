@@ -22,13 +22,14 @@ export default function App() {
   const handleSend = useCallback(async (text: string) => {
     setError(null);
 
-    const userMessage: Message = { id: generateId(), role: 'user', text, citations: [] };
+    const userMessage: Message = { id: generateId(), role: 'user', text, citations: [], cards: {} };
     const assistantId = generateId();
     const assistantMessage: Message = {
       id: assistantId,
       role: 'assistant',
       text: '',
       citations: [],
+      cards: {},
       streaming: true,
     };
 
@@ -54,10 +55,21 @@ export default function App() {
                 m.id === assistantId
                   ? {
                       ...m,
-                      // Embed a marker in the text stream so ChatMessage knows
-                      // where to render the badge inline.
                       text: m.text + ` \`cite:${citation.number}\``,
                       citations: [...m.citations, citation],
+                    }
+                  : m
+              )
+            );
+          },
+          onCard: (card) => {
+            setMessages(prev =>
+              prev.map(m =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      text: m.text + ` \`card:${card.card_id}\``,
+                      cards: { ...m.cards, [card.card_id]: card },
                     }
                   : m
               )

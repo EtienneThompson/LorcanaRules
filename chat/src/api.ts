@@ -1,10 +1,11 @@
-import type { Citation } from './types';
+import type { CardReference, Citation } from './types';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000';
 
 interface StreamCallbacks {
   onText: (text: string) => void;
   onCitation: (citation: Citation) => void;
+  onCard: (card: CardReference) => void;
 }
 
 /**
@@ -47,7 +48,8 @@ export async function streamChat(
       try {
         const parsed = JSON.parse(payload) as
           | { type: 'text'; text: string }
-          | { type: 'citation'; number: number; rule_id: string; rule_text: string };
+          | { type: 'citation'; number: number; rule_id: string; rule_text: string }
+          | { type: 'card'; card_id: number; full_name: string; image_url: string };
 
         if (parsed.type === 'text') {
           callbacks.onText(parsed.text);
@@ -56,6 +58,12 @@ export async function streamChat(
             number: parsed.number,
             rule_id: parsed.rule_id,
             rule_text: parsed.rule_text,
+          });
+        } else if (parsed.type === 'card') {
+          callbacks.onCard({
+            card_id: parsed.card_id,
+            full_name: parsed.full_name,
+            image_url: parsed.image_url,
           });
         }
       } catch {

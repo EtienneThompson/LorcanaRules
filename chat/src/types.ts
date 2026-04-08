@@ -6,11 +6,18 @@ export interface Citation {
   rule_text: string;
 }
 
+export interface CardReference {
+  card_id: number;
+  full_name: string;
+  image_url: string;
+}
+
 export interface Message {
   id: string;
   role: Role;
   text: string;
   citations: Citation[];
+  cards: Record<number, CardReference>;
   /** True while the assistant is still streaming this message. */
   streaming?: boolean;
 }
