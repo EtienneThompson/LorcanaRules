@@ -1,4 +1,5 @@
 import ReactMarkdown from 'react-markdown';
+import { CitationBadge } from './CitationBadge';
 import { useTypewriter } from '../hooks/useTypewriter';
 import type { Message } from '../types';
 
@@ -24,6 +25,11 @@ export function ChatMessage({ message }: Props) {
 
   const isWaiting = !isUser && message.streaming && message.text.length === 0;
 
+  // Build a number → Citation lookup for the custom code renderer.
+  const citationMap = Object.fromEntries(
+    message.citations.map(c => [c.number, c])
+  );
+
   return (
     <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
@@ -36,12 +42,30 @@ export function ChatMessage({ message }: Props) {
         {isWaiting ? (
           <ThinkingIndicator />
         ) : isUser ? (
-          <p className="whitespace-pre-wrap">
-            {text}
-          </p>
+          <p className="whitespace-pre-wrap">{text}</p>
         ) : (
           <div className="prose prose-sm dark:prose-invert max-w-none">
-            <ReactMarkdown>{text}</ReactMarkdown>
+            <ReactMarkdown
+              components={{
+                // Intercept inline code nodes — cite:N markers are embedded as
+                // inline code so ReactMarkdown preserves them as discrete nodes.
+                code({ children }) {
+                  const content = String(children);
+                  const match = content.match(/^cite:(\d+)$/);
+                  if (match) {
+                    const n = parseInt(match[1], 10);
+                    const citation = citationMap[n];
+                    if (citation) {
+                      return <CitationBadge citation={citation} />;
+                    }
+                  }
+                  // Ordinary inline code — render normally.
+                  return <code>{children}</code>;
+                },
+              }}
+            >
+              {text}
+            </ReactMarkdown>
           </div>
         )}
       </div>

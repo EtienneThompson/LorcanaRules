@@ -1,12 +1,19 @@
+import type { Citation } from './types';
+
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000';
 
+interface StreamCallbacks {
+  onText: (text: string) => void;
+  onCitation: (citation: Citation) => void;
+}
+
 /**
- * Call the /chat endpoint and invoke `onChunk` for every streamed text chunk.
+ * Call the /chat endpoint and invoke callbacks for each streamed event.
  * Returns when the stream ends.
  */
 export async function streamChat(
   query: string,
-  onChunk: (text: string) => void,
+  callbacks: StreamCallbacks,
   signal?: AbortSignal,
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/chat`, {
@@ -38,8 +45,19 @@ export async function streamChat(
       const payload = line.slice(6).trim();
       if (payload === '[DONE]') return;
       try {
-        const parsed = JSON.parse(payload) as { text: string };
-        onChunk(parsed.text);
+        const parsed = JSON.parse(payload) as
+          | { type: 'text'; text: string }
+          | { type: 'citation'; number: number; rule_id: string; rule_text: string };
+
+        if (parsed.type === 'text') {
+          callbacks.onText(parsed.text);
+        } else if (parsed.type === 'citation') {
+          callbacks.onCitation({
+            number: parsed.number,
+            rule_id: parsed.rule_id,
+            rule_text: parsed.rule_text,
+          });
+        }
       } catch {
         // ignore malformed lines
       }

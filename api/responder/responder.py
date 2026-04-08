@@ -8,13 +8,23 @@ from llm import AzureOpenAIClient
 from models import CardResult, RuleResult
 from prompts import PromptFormatter
 
-from .models import TextOutput
-from .parser import ResponderParser
+from .models import CitationOutput, TextOutput
+from .parser import ResponderOutput, ResponderParser
 
 if TYPE_CHECKING:
     from tools import ToolResult
 
 logger = logging.getLogger(__name__)
+
+
+def _build_rules_map(tool_results: list[ToolResult]) -> dict[str, str]:
+    """Return a mapping of rule_id → rule_text from the tool results."""
+    rules: dict[str, str] = {}
+    for tr in tool_results:
+        for item in tr.result:
+            if isinstance(item, RuleResult):
+                rules[item.rule_id] = item.rule_text
+    return rules
 
 
 def _build_context(tool_results: list[ToolResult]) -> str:
@@ -70,29 +80,36 @@ class Responder:
         async for output in responder.respond(query, tool_results):
             if isinstance(output, TextOutput):
                 print(output.text, end="", flush=True)
+            elif isinstance(output, CitationOutput):
+                print(f"[{output.number}] Rule {output.rule_id}")
     """
 
     def __init__(self) -> None:
         self._formatter = PromptFormatter()
         self._llm = AzureOpenAIClient()
-        self._parser = ResponderParser()
 
     async def respond(
         self,
         query: str,
         tool_results: list[ToolResult],
-    ) -> AsyncGenerator[TextOutput, None]:
+    ) -> AsyncGenerator[ResponderOutput, None]:
         """
         Stream a response for the given query and tool results.
+
+        A fresh :class:`ResponderParser` is created per call so that citation
+        counters reset correctly across requests.
 
         Args:
             query:        The user's original question.
             tool_results: Results returned by the tool executor.
 
         Yields:
-            Typed output objects from the response stream. Currently always
-            :class:`TextOutput`.
+            :class:`TextOutput` and :class:`CitationOutput` objects in the
+            order they are generated.
         """
+        rules_map = _build_rules_map(tool_results)
+        parser = ResponderParser(rules=rules_map)
+
         context = _build_context(tool_results)
         system_prompt = self._formatter.render("responder", "system.j2", context=context)
 
@@ -104,7 +121,10 @@ class Responder:
         logger.info("Responder streaming for query: %r", query)
 
         async for chunk in self._llm.stream(messages=messages):
-            for output in self._parser.feed(chunk):
+            for output in parser.feed(chunk):
                 yield output
+
+        for output in parser.flush():
+            yield output
 
         logger.info("Responder finished.")
