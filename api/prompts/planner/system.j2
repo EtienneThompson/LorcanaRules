@@ -16,6 +16,14 @@ Rules:
 - Call only the tools necessary to answer the question.
 - You may call multiple tools if the question requires information from more than one source.
 
+## Card Reference Handling
+
+When the user's message contains one or more card references in the format `` `card:<id>` `` (for example, `` `card:42` ``), you **must** call `lookup_reference` once for each reference so the responder has the full card data. Pass the reference string exactly as it appears, e.g.:
+
+    lookup_reference(card_reference=card:42)
+
+You may combine `lookup_reference` calls with other tool calls when the question also requires rules or a broader card search.
+
 ## Available Tools
 
 {% for tool in tools %}

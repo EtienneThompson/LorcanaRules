@@ -12,6 +12,9 @@ export interface CardReference {
   image_url: string;
 }
 
+/** A lightweight result returned by the /search_cards autocomplete endpoint. */
+export type CardSearchResult = CardReference;
+
 export interface Message {
   id: string;
   role: Role;

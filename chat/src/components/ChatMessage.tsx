@@ -41,12 +41,16 @@ export function ChatMessage({ message }: Props) {
       >
         {isWaiting ? (
           <ThinkingIndicator />
-        ) : isUser ? (
-          <p className="whitespace-pre-wrap">{text}</p>
         ) : (
-          <div className="prose prose-sm dark:prose-invert max-w-none">
+          <div className={isUser ? 'text-sm leading-relaxed' : 'prose prose-sm dark:prose-invert max-w-none'}>
             <ReactMarkdown
               components={{
+                // Unwrap the wrapping <p> for user messages so it stays inline.
+                ...(isUser && {
+                  p({ children }) {
+                    return <span className="whitespace-pre-wrap block">{children}</span>;
+                  },
+                }),
                 code({ children }) {
                   const content = String(children);
 

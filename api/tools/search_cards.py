@@ -35,12 +35,7 @@ class SearchCardsTool(Tool):
                         "the cards index. Be specific — include card names, colors, "
                         "abilities, or keywords relevant to the user's question."
                     ),
-                },
-                "top": {
-                    "type": "integer",
-                    "description": "Maximum number of cards to return. Defaults to 5.",
-                    "default": 5,
-                },
+                }
             },
             "required": ["query"],
         }
