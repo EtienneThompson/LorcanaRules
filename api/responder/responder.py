@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING
+from collections.abc import AsyncGenerator, Iterable
+from typing import TYPE_CHECKING, Any
 
 from llm import AzureOpenAIClient
 from models import CardResult, RuleResult
@@ -17,11 +17,27 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _iter_result(result: Any) -> Iterable[Any]:
+    """
+    Normalise a tool result value into an iterable of items.
+
+    Tools may return a list, a single object, or None:
+      - list   → iterate as-is, skipping None entries
+      - single → wrap in a one-element list
+      - None   → empty iterable (tool returned no data)
+    """
+    if result is None:
+        return ()
+    if isinstance(result, list):
+        return (item for item in result if item is not None)
+    return (result,)
+
+
 def _build_rules_map(tool_results: list[ToolResult]) -> dict[str, str]:
     """Return a mapping of rule_id → rule_text from the tool results."""
     rules: dict[str, str] = {}
     for tr in tool_results:
-        for item in tr.result:
+        for item in _iter_result(tr.result):
             if isinstance(item, RuleResult):
                 rules[item.rule_id] = item.rule_text
     return rules
@@ -41,7 +57,7 @@ def _build_cards_map(
     id_map: dict[int, tuple[str, str]] = {}
     name_map: dict[str, tuple[int, str, str]] = {}
     for tr in tool_results:
-        for item in tr.result:
+        for item in _iter_result(tr.result):
             if isinstance(item, CardResult):
                 entry = (item.fullName, item.images.full)
                 id_map[item.id] = entry
@@ -60,7 +76,7 @@ def _build_context(tool_results: list[ToolResult]) -> str:
     rules: list[RuleResult] = []
 
     for tr in tool_results:
-        for item in tr.result:
+        for item in _iter_result(tr.result):
             if isinstance(item, CardResult):
                 cards.append(item)
             elif isinstance(item, RuleResult):

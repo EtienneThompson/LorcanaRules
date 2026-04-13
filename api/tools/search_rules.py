@@ -35,17 +35,12 @@ class SearchRulesTool(Tool):
                         "the rules index. Be specific — include keywords, rule concepts, "
                         "or mechanic names relevant to the user's question."
                     ),
-                },
-                "top": {
-                    "type": "integer",
-                    "description": "Maximum number of rules to return. Defaults to 5.",
-                    "default": 5,
-                },
+                }
             },
             "required": ["query"],
         }
 
-    async def execute(self, query: str, top: int = 5, **kwargs: Any) -> list[RuleResult]:
+    async def execute(self, query: str, top: int = 10, **kwargs: Any) -> list[RuleResult]:
         """
         Search the rules index and return matching RuleResult objects.
 

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { ChatMessage } from './components/ChatMessage';
 import { ChatInput } from './components/ChatInput';
 import { streamChat } from './api';
-import type { Message } from './types';
+import type { CardReference, CardSearchResult, Message } from './types';
 
 function generateId() {
   return Math.random().toString(36).slice(2);
@@ -19,10 +19,21 @@ export default function App() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = useCallback(async (text: string) => {
+  const handleSend = useCallback(async (rawText: string, userCards: CardSearchResult[]) => {
     setError(null);
 
-    const userMessage: Message = { id: generateId(), role: 'user', text, citations: [], cards: {} };
+    // Convert [[Card Name]] markers to `card:N` inline markers and build the cards map.
+    let text = rawText;
+    const userCardsById: Record<number, CardReference> = {};
+    for (const card of userCards) {
+      const marker = `[[${card.full_name}]]`;
+      if (text.includes(marker)) {
+        text = text.split(marker).join(` \`card:${card.card_id}\``);
+        userCardsById[card.card_id] = card;
+      }
+    }
+
+    const userMessage: Message = { id: generateId(), role: 'user', text, citations: [], cards: userCardsById };
     const assistantId = generateId();
     const assistantMessage: Message = {
       id: assistantId,

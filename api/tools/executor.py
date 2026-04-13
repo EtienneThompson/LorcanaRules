@@ -50,5 +50,11 @@ class ToolExecutor:
         tool = self._registry.get(tool_call.name)
         logger.info("Executing tool %r with args %r", tool_call.name, tool_call.arguments)
         result = await tool.execute(**tool_call.arguments)
-        logger.info("Tool %r returned %d result(s)", tool_call.name, len(result) if hasattr(result, "__len__") else 1)
+        if result is None:
+            count = 0
+        elif hasattr(result, "__len__"):
+            count = len(result)
+        else:
+            count = 1
+        logger.info("Tool %r returned %d result(s)", tool_call.name, count)
         return ToolResult(tool_call=tool_call, result=result)

@@ -1,4 +1,4 @@
-import type { CardReference, Citation } from './types';
+import type { CardReference, CardSearchResult, Citation } from './types';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000';
 
@@ -6,6 +6,29 @@ interface StreamCallbacks {
   onText: (text: string) => void;
   onCitation: (citation: Citation) => void;
   onCard: (card: CardReference) => void;
+}
+
+/**
+ * Search for cards whose name starts with the given prefix.
+ * Returns an empty array on error or empty query.
+ */
+export async function searchCards(
+  prefix: string,
+  signal?: AbortSignal,
+): Promise<CardSearchResult[]> {
+  if (!prefix) return [];
+  try {
+    const response = await fetch(
+      `${API_BASE}/search_cards?q=${encodeURIComponent(prefix)}`,
+      { signal },
+    );
+    if (!response.ok) return [];
+    return response.json();
+  } catch (err) {
+    // Suppress abort errors — the caller intentionally cancelled.
+    if (err instanceof Error && err.name === 'AbortError') return [];
+    return [];
+  }
 }
 
 /**
