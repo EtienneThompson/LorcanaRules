@@ -3,28 +3,12 @@ from datetime import date
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class CardAbility(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    type: str
-    fullText: str
-    # keyword ability fields
-    keyword: str | None = None
-    keywordValue: str | None = None
-    keywordValueNumber: float | None = None
-    reminderText: str | None = None
-    # activated ability fields
-    costs: list[str] | None = None
-    costsText: str | None = None
-    # named ability fields (triggered/activated/static)
-    name: str | None = None
-    effect: str | None = None
-
-
 class CardImages(BaseModel):
     model_config = ConfigDict(extra="ignore")
     full: str
     thumbnail: str
     foilMask: str | None = None
+    varnishMask: str | None = None
 
 
 class FormatAllowance(BaseModel):
@@ -34,9 +18,23 @@ class FormatAllowance(BaseModel):
     rotationGroup: int | None = None
 
 
-class ReprintReference(BaseModel):
+class CardVariant(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     id: int
+    code: str
+    number: int
+    rarity: str
     setCode: str
+    setName: str
+    foilTypes: list[str]
+    images: CardImages
+    flavorText: str | None = None
+    artists: list[str]
+    baseId: int | None = None
+    promoGrouping: str | None = None
+    promoSource: str | None = None
+    promoSourceCategory: str | None = None
+    varnishType: str | None = None
 
 
 class CardResult(BaseModel):
@@ -45,9 +43,7 @@ class CardResult(BaseModel):
     score: float = Field(alias="@search.score", default=0.0)
     id: int
     name: str
-    version: str | None = None
     fullName: str
-    simpleName: str
     type: str
     color: str
     cost: int
@@ -60,11 +56,7 @@ class CardResult(BaseModel):
     story: str | None = None
     subtypes: list[str]
     artists: list[str]
-    artistsNormalized: list[str] | None = None
     keywordAbilities: list[str] | None = None
-    abilities: list[CardAbility]
-    fullText: str | None = None
-    fullTextSections: list[str]
     flavorText: str | None = None
     foilTypes: list[str]
     images: CardImages
@@ -80,5 +72,5 @@ class CardResult(BaseModel):
     moveCost: int | None = None
     # Enchanted variant reference
     enchantedId: int | None = None
-    # Reprint references
-    reprintedAsIds: list[ReprintReference] | None = None
+    # Additional printings (promos, specialty reprints)
+    variants: list[CardVariant] | None = None

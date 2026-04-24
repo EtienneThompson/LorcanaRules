@@ -223,6 +223,7 @@ def parse_rules(text: str) -> tuple[list[tuple[str, str]], dict[str, str]]:
         section_titles: dict mapping every number seen (both top-level section
             headers and sub-concept headers) to its human-readable title, used
             to build ancestry chains for each rule.
+        skipped_headers: count of header-only rules excluded from the output.
     """
     lines = text.split("\n")
 
@@ -230,6 +231,8 @@ def parse_rules(text: str) -> tuple[list[tuple[str, str]], dict[str, str]]:
     section_titles: dict[str, str] = {}
     current_number: str | None = None
     current_text_parts: list[str] = []
+    current_is_header: bool = False
+    skipped_headers: int = 0
     in_glossary = False
     found_first_rule = False
 
@@ -267,8 +270,8 @@ def parse_rules(text: str) -> tuple[list[tuple[str, str]], dict[str, str]]:
                 else:
                     continue
 
-            # Save previous rule if any
-            if current_number is not None:
+            # Save previous rule if any (skip header-only entries)
+            if current_number is not None and not current_is_header:
                 rules.append((current_number, " ".join(current_text_parts)))
 
             current_number = match.group(1)
@@ -284,8 +287,10 @@ def parse_rules(text: str) -> tuple[list[tuple[str, str]], dict[str, str]]:
                 and not rule_text.endswith(".")
                 and not any(w[0].islower() for w in words[1:])
             )
+            current_is_header = is_title_only
             if is_title_only:
                 section_titles[current_number] = rule_text
+                skipped_headers += 1
         elif found_first_rule and current_number is not None and stripped:
             # Skip diagram labels and annotations from card layout diagrams:
             # - All-caps lines (e.g., "READY", "CARD ORIENTATION")
@@ -300,11 +305,11 @@ def parse_rules(text: str) -> tuple[list[tuple[str, str]], dict[str, str]]:
             # Continuation text for the current rule
             current_text_parts.append(stripped)
 
-    # Don't forget the last rule
-    if current_number is not None:
+    # Don't forget the last rule (skip if it's a header-only entry)
+    if current_number is not None and not current_is_header:
         rules.append((current_number, " ".join(current_text_parts)))
 
-    return rules, section_titles
+    return rules, section_titles, skipped_headers
 
 
 def get_ancestry(number: str, section_titles: dict[str, str]) -> list[str]:
@@ -358,7 +363,7 @@ def main():
     print(toc)
     print()
 
-    rules, section_titles = parse_rules(text)
+    rules, section_titles, skipped_headers = parse_rules(text)
     print("=== RULES ===")
     for number, rule_text in rules:
         ancestry = get_ancestry(number, section_titles)
@@ -374,6 +379,7 @@ def main():
     write_rules_jsonl(rules, section_titles, jsonl_path)
 
     print(f"\n# Total rules parsed: {len(rules)}", file=sys.stderr)
+    print(f"# Header sections removed: {skipped_headers}", file=sys.stderr)
     print(f"# Total glossary entries: {len(glossary)}", file=sys.stderr)
     print(f"# Rules written to: {jsonl_path}", file=sys.stderr)
 
